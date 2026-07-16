@@ -3,11 +3,13 @@ import Database from 'better-sqlite3';
 
 const app = express();
 app.use(express.json());
+// usiamo la cartella "public" per i file statici
+app.use(express.static('public'));
 
 // 1. Connessione al database reale (creerà un file chiamato hotel.db)
 const db = new Database('hotel.db');
 
-// 2. Creazione della tabella in SQL puro
+// 2. Creazione della tabella in SQL puro, per averla sempre disponibile ed impostata con: nome, data e stanza.
 db.prepare(`
     CREATE TABLE IF NOT EXISTS prenotazioni (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,6 +55,7 @@ app.post('/api/prenotazioni', (req, res) => {
     });
 });
 
-app.listen(3001, () => {
-    console.log("🚀 Server con VERO Database SQL attivo sulla porta 3001");
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`Server attivo sulla porta ${PORT}`);
 });

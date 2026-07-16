@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestione Prenotazioni - BookingMIMO</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; background-color: #f4f4f9; display: flex; gap: 40px; }
+        h1 { color: #333; margin-top: 0; }
+        .colonna { flex: 1; max-width: 450px; }
+        
+        /* Stile del Modulo */
+        form { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .campo { margin-bottom: 15px; }
+        .campo label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        .campo input, .campo select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+        button:hover { background-color: #45a049; }
+        
+        /* Stile dei Messaggi */
+        #messaggio { margin-top: 15px; padding: 10px; border-radius: 4px; display: none; font-weight: bold; }
+        .successo { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .errore { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Stile della Lista */
+        #lista-prenotazioni { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .prenotazione-item { padding: 10px 0; border-bottom: 1px solid #eee; }
+        .prenotazione-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+
+    <!-- COLONNA 1: IL FORM DI INSERIMENTO -->
+    <div class="colonna">
+        <h1>Nuova Prenotazione</h1>
+        <form id="form-prenotazione">
+            <div class="campo">
+                <label for="nome">Nome Ospite:</label>
+                <input type="text" id="nome" required placeholder="Es. Mario Rossi">
+            </div>
+            <div class="campo">
+                <label for="data">Data:</label>
+                <input type="date" id="data" required>
+            </div>
+            <div class="campo">
+                <label for="stanza">Stanza:</label>
+                <select id="stanza" required>
+                    <option value="101">Stanza 101</option>
+                    <option value="102">Stanza 102</option>
+                    <option value="201">Stanza 201</option>
+                </select>
+            </div>
+            <button type="submit">Prenota Ora</button>
+            
+            <!-- Box per mostrare la conferma o l'errore dell'operazione -->
+            <div id="messaggio"></div>
+        </form>
+    </div>
+
+    <!-- COLONNA 2: LA LISTA DELLE PRENOTAZIONI -->
+    <div class="colonna">
+        <h1>Prenotazioni Attive</h1>
+        <div id="lista-prenotazioni">Caricamento in corso...</div>
+    </div>
+
+    <script>
+        const contenitore = document.getElementById('lista-prenotazioni');
+        const form = document.getElementById('form-prenotazione');
+        const messaggioBox = document.getElementById('messaggio');
+
+        // --- FUNZIONE 1: CARICARE LE PRENOTAZIONI (Quella che abbiamo scritto prima) ---
+        function caricaPrenotazioni() {
+            fetch('/api/prenotazioni')
+                .then(risposta => risposta.json())
+                .then(prenotazioni => {
+                    contenitore.innerHTML = "";
+                    if (prenotazioni.length === 0) {
+                        contenitore.innerHTML = "<p>Nessuna prenotazione presente.</p>";
+                        return;
+                    }
+                    prenotazioni.forEach(p => {
+                        const riga = document.createElement('p');
+                        riga.className = 'prenotazione-item';
+                        riga.textContent = `${p.nome} - Stanza ${p.stanza} (il ${p.data})`;
+                        contenitore.appendChild(riga);
+                    });
+                })
+                .catch(errore => {
+                    contenitore.innerHTML = "<p style='color: red;'>Errore nel caricamento.</p>";
+                    console.error(errore);
+                });
+        }
+
+        // Carichiamo la lista all'avvio della pagina
+        caricaPrenotazioni();
+
+        // --- FUNZIONE 2: GESTIRE L'INVIO DEL FORM (La nuova parte POST!) ---
+        form.addEventListener('submit', function(evento) {
+            evento.preventDefault(); // Impedisce alla pagina di ricaricarsi (comportamento standard dei form HTML)
+
+            // Recuperiamo i dati inseriti nei campi dell'HTML
+            const nomeInserito = document.getElementById('nome').value;
+            const dataInserita = document.getElementById('data').value;
+            const stanzaInserita = document.getElementById('stanza').value;
+
+            // Prepariamo i dati nello stesso identico formato JSON che voleva Postman
+            const datiInviare = {
+                nome: nomeInserito,
+                data: dataInserita,
+                stanza: stanzaInserita
+            };
+
+            // Nascondiamo temporaneamente il box dei messaggi precedenti
+            messaggioBox.style.display = 'none';
+
+            // Inviamo i dati al server tramite fetch() specificando il metodo POST
+            fetch('/api/prenotazioni', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' // Spiega al server che stiamo inviando dati JSON
+                },
+                body: JSON.stringify(datiInviare) // Trasforma l'oggetto JavaScript in una stringa di testo JSON
+            })
+            .then(risposta => {
+                // Se la risposta è OK (es. 201 creato) procediamo
+                if (risposta.ok) {
+                    return risposta.json().then(datiRicevuti => {
+                        // Mostriamo il box verde di successo
+                        messaggioBox.textContent = `Prenotazione registrata con successo per ${datiRicevuti.nome}!`;
+                        messaggioBox.className = 'successo';
+                        messaggioBox.style.display = 'block';
+
+                        // Svuotiamo il modulo in modo che sia pronto per un'altra prenotazione
+                        form.reset();
+
+                        // Aggiorniamo subito la lista a destra senza ricaricare la pagina!
+                        caricaPrenotazioni();
+                    });
+                } else {
+                    // Se c'è un errore (es. stanza già occupata), mostriamo il box rosso di errore
+                    return risposta.json().then(errore => {
+                        messaggioBox.textContent = errore.errore || "Impossibile completare la prenotazione.";
+                        messaggioBox.className = 'errore';
+                        messaggioBox.style.display = 'block';
+                    });
+                }
+            })
+            .catch(errore => {
+                messaggioBox.textContent = "Errore di connessione con il server.";
+                messaggioBox.className = 'errore';
+                messaggioBox.style.display = 'block';
+                console.error(errore);
+            });
+        });
+    </script>
+</body>
+</html>

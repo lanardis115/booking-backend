@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  backend:
+    container_name: bookingmimo-container
+    build: .
+    ports:
+      - "3001:3001"
+    restart: always
